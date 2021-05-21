@@ -1,3 +1,5 @@
+*.swo
+*.swp
 .vscode/settings.json
 Lotad.png
 main.py
