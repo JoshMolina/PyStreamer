@@ -1,16 +1,8 @@
 import os
 import youtube_dl #pip install youtube-dl
 import pafy #pip install pafy
-import selenium
 import mpv
-from selenium import webdriver
-from selenium.webdriver import Chrome
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-#from pytube import Youtube #pip install pytube
 from bs4 import BeautifulSoup
-import pygame #pip install pygame
 import re, requests, subprocess, urllib.parse, urllib.request
 import vlc #pip install python-vlc
 import time
