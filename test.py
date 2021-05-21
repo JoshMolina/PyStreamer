@@ -1,12 +1,24 @@
 import os
-import youtube_dl #pip install youtube-dl
-import pafy #pip install pafy
-import mpv
-from bs4 import BeautifulSoup
-import re, requests, subprocess, urllib.parse, urllib.request
-import vlc #pip install python-vlc
+
+import pafy  # pip install pafy
+import youtube_dl  # pip install youtube-dl
+
+# basepath=os.path.dirname(os.path.abspath(__file__))
+# dllspath=os.path.join(basepath,'dlls')
+# os.environ['PATH']=dllspath+os.pathsep+os.environ['PATH']
+# os.add_dll_directory("C:\Program Files (x86)\mpv-1.dll")
+import re
+import subprocess
 import time
+import urllib.parse
+import urllib.request
 from tkinter import *
+
+import mpv
+import requests
+import vlc  # pip install python-vlc
+from bs4 import BeautifulSoup
+
 root=Tk()
 mPlayer = mpv.MPV(ytdl=True, video=False)
 root.title("Test MPV Program")
@@ -18,7 +30,7 @@ res_pause.set("__")
 
 query_url = StringVar()
 query_url.set("")
-query_title=StringVar()
+query_title = StringVar()
 query_title.set("")
 query_thumbnail = ""
 display_var = StringVar()
@@ -42,7 +54,7 @@ def play():
 
 
 
-    play_time()
+    # play_time()
 def resume_pause():
     print("Playing status: "+ str(playing.get()))
     #Ugly code because I haven't gotten around to writing a disable tag for the play/resume/pause/stop buttons
@@ -81,12 +93,20 @@ def search(arg):
         formatUrl = urllib.request.urlopen("https://www.youtube.com/results?"+query_title)
         search_results = re.findall(r"watch\?v=(\S{11})", formatUrl.read().decode())
         url = "https://www.youtube.com/watch?v="+"{}".format(search_results[0])
-        ydl_opts = {'format': 'bestaudio'}
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        ydl_opts = {
+            'format': 'bestaudio',
+            'postprocessors':[{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec':'mp3',
+                'preferredquality':'192'
+            }],
+            'outtmpl': '%(title)s.%(ext)s',
+            'quiet': False}
+        with youtube_dl.YoutubeDL({'format': 'bestaudio[ext=m4a]'}) as ydl:
             result=ydl.extract_info(url, download=False)
             query_url.set(result.get("url",None))
-            query_title.set(result.get('title',None))
-
+            query_title = result.get('title',None)
+            update_label(query_title)
     else:
         print("Empty query")
         query_url.set("")
