@@ -39,11 +39,14 @@ res_pause.set("__")
 
 query_url = StringVar()
 query_url.set("")
-query_title=StringVar()
+query_title = StringVar()
 query_title.set("")
+found_title = StringVar()
 query_thumbnail = ""
 display_var = StringVar()
 display_var.set("Enter a song name")
+queue = {}
+q_btn_state = False
 
 #Odd numbers are titles, even numbers are urls/ids
 top3results=["","","","","",""]
@@ -157,7 +160,6 @@ def play_time():
     length_label.config(text=form_length)
     status_bar.config(text="Time Elapsed: " + form_time + "     Song Length: " + form_length)
     music_slider.config(to=leng, value=curr_time)
-    # mus_sli_label.config(text=form_time)
     status_bar.after(1000, play_time)
 
 def search(arg):
@@ -173,22 +175,32 @@ def search(arg):
         for title in yt_title:
             pass
         query_url.set(pafy.new(clip2).getbestaudio().url)
-        update_label(str(title['content']))
+        found_title.set(str(title['content']))
+        update_label(found_title.get())
+        add_q_btn.config(state='normal')
     else:
         print("Empty query")
         query_url.set("")
         update_label("Please input a title for the song you'd like to play")
+        add_q_btn.config(state='disabled')
 def update_label(text):
     display_var.set(text)
 
 def add_song():
-    pass
+    queue[found_title.get()] = query_url.get()
+    queue_listbox.insert(END, found_title.get())
 
 e = Entry(root, width=60)
 e.pack()
 
-button = Button(root, text="Enter a Youtube Title", command=lambda: search(e.get()))
-button.pack(pady=(0,20))
+search_frame = Frame(root)
+search_frame.pack()
+
+search_btn = Button(search_frame, text="Enter a Youtube Title", command=lambda: search(e.get()))
+search_btn.grid(row=0,column=0,pady=(0,20))
+add_q_btn = Button(search_frame, text="Add song to queue", state='disabled', command=add_song)
+add_q_btn.grid(row=0,column=1,pady=(0,20))
+
 
 display_label=Label(root, textvariable=display_var, width=60)
 display_label.pack(expand=True, fill=X)
@@ -196,12 +208,17 @@ display_label.pack(expand=True, fill=X)
 info_frame = Frame(root)
 info_frame.pack(pady=(0,10))
 
-music_slider = ttk.Scale(info_frame, from_=0, to=0, orient=HORIZONTAL, value=0, length=360, command=change_time)
-music_slider.grid(row=0, column=1)
+queue_listbox=Listbox(info_frame)
+queue_listbox.grid(row=0, column=0, padx=(10,0))
+
 curr_time_label=Label(info_frame, text="00:00:00")
-curr_time_label.grid(row=0,column=0, padx=(20,0))
+curr_time_label.grid(row=0,column=1, padx=(20,0))
+
+music_slider = ttk.Scale(info_frame, from_=0, to=0, orient=HORIZONTAL, value=0, length=360, command=change_time)
+music_slider.grid(row=0, column=2)
+
 length_label=Label(info_frame, text="00:00:00")
-length_label.grid(row=0,column=2)
+length_label.grid(row=0,column=3,padx=(0,65))
 
 volume_slider = ttk.Scale(info_frame, from_=125, to=0, value=100, orient=VERTICAL, command=change_vol)
 volume_slider.grid(row=0, column=3, padx=(25, 0))
