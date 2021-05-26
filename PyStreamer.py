@@ -90,9 +90,13 @@ class vlPlayer():
         return self.player.get_length() / 1000
 
     def getFormattedTime(self):
+        if (self.getCurrTime() == -.001):
+            return "00:00:00"
         return time.strftime('%H:%M:%S', time.gmtime(self.getCurrTime()))
 
     def getFormattedLength(self):
+        if (self.getLength() == -.001):
+            return "00:00:00"
         return time.strftime('%H:%M:%S', time.gmtime(self.getLength()))
     
     def setPos(self, time_var):
@@ -137,14 +141,12 @@ def change_time(time):
     slide_pos = int(music_slider.get())
     music_slider.set(slide_pos)
     x.setPos(slide_pos)
+    curr_time_label.config(text=x.getFormattedTime())
 
 def change_vol(volume):
     x.setVol(volume_slider.get())
-
-def update_vol():
     v_slide=str(int(volume_slider.get()))
     volume_label.config(text="Volume: " + v_slide)
-    volume_label.after(10, update_vol)
 
 def play_time():
     curr_time = x.getCurrTime()
@@ -206,7 +208,6 @@ volume_slider.grid(row=0, column=3, padx=(25, 0))
 
 volume_label = Label(info_frame, text="Volume: " + str(int(volume_slider.get())))
 volume_label.grid(row=1, column=3, padx=(35,0))
-volume_slider.after(10, update_vol)
 
 control_frame = Frame(root)
 control_frame.pack()
