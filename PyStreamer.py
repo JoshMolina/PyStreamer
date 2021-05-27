@@ -22,6 +22,8 @@ import tkinter.ttk as ttk
 from tkinter import messagebox
 from PIL import ImageTk, Image #pip install Pillow
 from googleapiclient.discovery import build #pip install google-api-python-client
+import threading
+from threading import Thread
 root=Tk()
 process = Variable()
 # layer = (ytdl=True, video=False)
@@ -45,18 +47,27 @@ found_title = StringVar()
 query_thumbnail = ""
 display_var = StringVar()
 display_var.set("Enter a song name")
-queue = {}
+queue = []
+q_url = []
 q_btn_state = False
+queue_selected=False
+th_timer = ""
+in_queue=False
+
+curr_q_index = IntVar()
+curr_q_index.set(-1)
+queue_length=len(queue)
 
 #Odd numbers are titles, even numbers are urls/ids
 top3results=["","","","","",""]
 
 
 
-class vlPlayer():
+class vlPlayer(Thread):
 ##list of all commands from the terminal for vlc: https://wiki.videolan.org/VLC_command-line_help/
 ##Also handy for explaining what the above one doesn't: https://www.olivieraubert.net/vlc/python-ctypes/doc/
     def __init__(self):
+        Thread.__init__(self)
         #This makes the audio actually bareable
         self.options = [
             "--aout=waveout",
@@ -64,6 +75,7 @@ class vlPlayer():
             "--speex-resampler-quality=10",
             "--src-converter-type=0",
         ]
+        self.from_playlist = False
         self.vlc_instance=vlc.Instance(self.options)
         self.player = self.vlc_instance.media_player_new()
         #These also make the audio bareable
@@ -72,13 +84,57 @@ class vlPlayer():
         self.player.set_equalizer(self.eq)
         self.volume = int(100)
 
-    def play(self):
-        self.media = self.vlc_instance.media_new(query_url.get())
+
+    def play(self, url):
+        self.from_playlist-False
+        self.player.stop()
+        self.player = self.vlc_instance.media_player_new()
+        self.media = self.vlc_instance.media_new(url)
         self.media.get_mrl()
         self.player.set_media(self.media)
         self.player.set_equalizer(self.eq)
         self.player.play()
         self.setVol(self.volume)
+    
+    def playlist(self, urls):
+        self.player=self.vlc_instance.media_player_new()
+        playing = set([1,2,3,4])
+        for i in urls:
+            self.player.set_mrl(i)
+            self.player.play()
+            play = True
+            while play == True:
+                time.sleep(1)
+                play_state = self.player.get_state()
+                if play_state in playing:
+                    continue
+                else:
+                    play=False
+        
+        # self.from_playlist=True
+        # self.player.stop()
+        # self.player = self.vlc_instance.media_list_player_new()
+        # self.media_list = self.vlc_instance.media_list_new()
+        # self.pl_inst = self.player.get_media_player()
+        # # self.pl_inst = self.vlc_instance.media_player_new()
+        # self.pl_inst.set_equalizer(self.eq)
+        # for item in urls:
+        #     self.media = self.vlc_instance.media_new(item[1])
+        #     self.media.get_mrl()
+        #     self.media_list.add_media(self.media)
+        # self.player.set_media_list(self.media_list)
+        # self.player.set_media_player(self.pl_inst)
+        # # self.player.set_equalizer(self.eq)
+        # self.player.play()
+        # self.setVol(self.volume)
+
+        #  self.media = self.vlc_instance.media_list_new(urls)
+        # self.media.get_mrl()
+        # self.player=vlc.Instance(self.options).media_list_player_new()
+        # self.player.set_media_list(self.media)
+        # self.player.set_equalizer(self.eq)
+        # self.player.play()
+        # self.setVol(self.volume)
 
     def pause(self):
         self.player.pause()
@@ -108,17 +164,23 @@ class vlPlayer():
     def setVol(self, volume):
         self.volume = volume
         self.player.audio_set_volume(int(volume))
+    
+    def get_state(self):
+        return self.player.get_state()
+    
+    def get_is_playing(self):
+        return self.player.is_playing() 
 
 
 x=vlPlayer()
 
-def play():
-    print("Query URL: " + query_url.get())
+def play(*args):
     ##Helpful link: https://stackoverflow.com/questions/54862611/pafy-and-vlc-audio-only-in-python
-    print("hit play()")
     
-    
-    x.play()
+    if (len(args) == 0):
+        x.play(query_url.get())
+    else:
+        x.play(args[0])
     playing.set(True)
     res_pause.set("Pause")
     play_time()
@@ -156,6 +218,10 @@ def play_time():
     leng = x.getLength()
     form_time = x.getFormattedTime()
     form_length = x.getFormattedLength()
+    if curr_time!=leng:
+        playing.set(True)
+    else:
+        playing.set(False)
     curr_time_label.config(text=form_time)
     length_label.config(text=form_length)
     status_bar.config(text="Time Elapsed: " + form_time + "     Song Length: " + form_length)
@@ -187,8 +253,59 @@ def update_label(text):
     display_var.set(text)
 
 def add_song():
-    queue[found_title.get()] = query_url.get()
+    queue.append([found_title.get(), query_url.get()])
+    q_url.append(query_url.get())
     queue_listbox.insert(END, found_title.get())
+
+# def play_queue():
+#     in_queue=True
+#     th_timer = threading.Timer(.5, p_q)
+#     th_timer.start()
+
+def play_queue():
+    x.playlist(q_url)
+    play_time()
+
+    # if len(queue) != 0 and curr_q_index.get() < len(queue):
+    #     # x.playlist(queue)
+    #     if curr_q_index.get() == -1:
+    #         curr_q_index.set(curr_q_index.get() + 1)
+    #     print("hit")
+    #     play(queue[curr_q_index.get()][1])
+    #     playing = set([1,2,3,4])
+    #     time.sleep(1)
+    #     check_finished()
+    #     play_queue()
+        # while True:
+        #     state = x.get_state()
+        #     if state not in playing:
+        #         break
+        #     continue
+        # if len(queue) > curr_q_index.get():
+        #     curr_q_index.set(curr_q_index.get() + 1)
+        #     play_queue()
+        # for item in queue:
+        #     print("Title: " + item[0])
+        #     play(item[1])
+        #     time.sleep(1)
+        #     check_finished()
+
+def is_done():
+    if x.get_is_playing() == True:
+        if music_slider.get() == x.getLength():
+            pass
+
+def check_finished():
+    while True:
+        state = x.get_state()
+        time.sleep(1)
+        if x.get_is_playing() != True:
+            break
+
+def on_closing():
+    if in_queue==True:
+        th_timer.stop()
+    root.destroy()
 
 e = Entry(root, width=60)
 e.pack()
@@ -211,11 +328,15 @@ info_frame.pack(pady=(0,10))
 queue_listbox=Listbox(info_frame)
 queue_listbox.grid(row=0, column=0, padx=(10,0))
 
+queue_play=Button(info_frame, text="Play Queue", command=play_queue)
+queue_play.grid(row=1,column=0, padx=(10,0))
+
 curr_time_label=Label(info_frame, text="00:00:00")
 curr_time_label.grid(row=0,column=1, padx=(20,0))
 
-music_slider = ttk.Scale(info_frame, from_=0, to=0, orient=HORIZONTAL, value=0, length=360, command=change_time)
+music_slider = ttk.Scale(info_frame, from_=0, to=1, orient=HORIZONTAL, value=0, length=360, command=change_time)
 music_slider.grid(row=0, column=2)
+# music_slider.after(1000, command=is_done)
 
 length_label=Label(info_frame, text="00:00:00")
 length_label.grid(row=0,column=3,padx=(0,65))
@@ -246,4 +367,5 @@ status_bar.pack(fill=X)
 def popup():
     messagebox.showerror("ERROR!", "You must enter a title and search for it before clicking play!")
 
+root.protocol("WM_DELETE_WINDOW", on_closing)
 root.mainloop()
