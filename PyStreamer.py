@@ -25,7 +25,6 @@ from googleapiclient.discovery import build #pip install google-api-python-clien
 import threading
 from threading import Thread
 root=Tk()
-process = Variable()
 # layer = (ytdl=True, video=False)
 root.title("PyStreamer")
 # filters = [
@@ -53,6 +52,15 @@ q_btn_state = False
 queue_selected=False
 th_timer = ""
 in_queue=False
+pl_indiv=False
+pl_queue=False
+play_next=False
+end_of_queue=True
+is_fin=False
+curr_playing=""
+curr_search=""
+
+
 
 curr_q_index = IntVar()
 curr_q_index.set(-1)
@@ -63,11 +71,11 @@ top3results=["","","","","",""]
 
 
 
-class vlPlayer(Thread):
+class vlPlayer():
 ##list of all commands from the terminal for vlc: https://wiki.videolan.org/VLC_command-line_help/
 ##Also handy for explaining what the above one doesn't: https://www.olivieraubert.net/vlc/python-ctypes/doc/
     def __init__(self):
-        Thread.__init__(self)
+        # Thread.__init__(self)
         #This makes the audio actually bareable
         self.options = [
             "--aout=waveout",
@@ -80,7 +88,7 @@ class vlPlayer(Thread):
         self.player = self.vlc_instance.media_player_new()
         #These also make the audio bareable
         self.eq = vlc.AudioEqualizer()
-        self.eq.set_preamp(8)
+        self.eq.set_preamp(6)
         self.player.set_equalizer(self.eq)
         self.volume = int(100)
 
@@ -88,7 +96,7 @@ class vlPlayer(Thread):
     def play(self, url):
         self.from_playlist-False
         self.player.stop()
-        self.player = self.vlc_instance.media_player_new()
+        # self.player = self.vlc_instance.media_player_new()
         self.media = self.vlc_instance.media_new(url)
         self.media.get_mrl()
         self.player.set_media(self.media)
@@ -169,21 +177,124 @@ class vlPlayer(Thread):
         return self.player.get_state()
     
     def get_is_playing(self):
-        return self.player.is_playing() 
+        return self.player.is_playing()
+    
+    def get_is_finished(self):
+        return self.getCurrTime() == self.getLength()
 
 
 x=vlPlayer()
 
+def play_btn():
+    global pl_indiv
+    global pl_queue
+    global curr_q_index
+    if pl_queue==True:
+        stop()
+        pl_queue = False
+    pl_indiv = True
+    curr_q_index.set(-1)
+    play(query_url.get())
+
+def play_queue_btn():
+    global pl_indiv
+    global pl_queue
+    global play_next
+    global curr_q_index
+    global queue
+    global end_of_queue
+    curr_q_index.set(-1)
+    print("len(queue): ", len(queue))
+    if len(queue) > 0:
+        curr_q_index.set(0)
+        if pl_indiv==True:
+            stop()
+            pl_indiv=False
+        pl_queue = True
+        play_next = True
+        end_of_queue = False
+        play_queue()
+
 def play(*args):
     ##Helpful link: https://stackoverflow.com/questions/54862611/pafy-and-vlc-audio-only-in-python
+    global pl_indiv
+    global pl_queue
+    global curr_playing
+    # if playing.get():
+    #     pass
+    # else:
+    #     if pl_indiv == True:
+    #         x.play(query_url.get())
+    #         playing.set(True)
+    #         res_pause.set("Pause")
+    #         play_time()
+    #     elif play_queue == True:
+    #         x.play(args[0][0])
+    #         playing.set(True)
+    #         res_pause.set("Pause")
+    #         play_time()
+
+    
+    
     
     if (len(args) == 0):
+        curr_playing=found_title.get()
         x.play(query_url.get())
     else:
         x.play(args[0])
+    # x.play(args[0])
     playing.set(True)
     res_pause.set("Pause")
     play_time()
+    if pl_queue == True:
+        root.after(250, check_finished)
+
+def play_queue():
+    global pl_queue
+    global play_next
+    global end_of_queue
+    global curr_playing
+
+    if play_next == True:
+        if curr_q_index.get() < len(queue):
+            play_next = False
+            curr_playing = str(queue[curr_q_index.get()][0])
+            play(queue[curr_q_index.get()][1])
+            curr_q_index.set(curr_q_index.get() + 1)
+        else: 
+            print("End of queue")
+            pl_queue=False
+    else:
+        pass
+
+    # if len(queue) != 0 and curr_q_index.get() < len(queue):
+        
+
+    # if len(queue) != 0 and curr_q_index.get() < len(queue):
+    #     # x.playlist(queue)
+    #     if curr_q_index.get() == -1:
+    #         curr_q_index.set(curr_q_index.get() + 1)
+    #     print("hit")
+    #     play(queue[curr_q_index.get()][1])
+    #     playing = set([1,2,3,4])
+    #     time.sleep(1)
+    #     check_finished()
+    #     play_queue()
+        # while True:
+        #     state = x.get_state()
+        #     if state not in playing:
+        #         break
+        #     continue
+        # if len(queue) > curr_q_index.get():
+        #     curr_q_index.set(curr_q_index.get() + 1)
+        #     play_queue()
+        # for item in queue:
+        #     print("Title: " + item[0])
+        #     play(item[1])
+        #     time.sleep(1)
+        #     check_finished()
+
+
 def resume_pause():
     print("Playing status: "+ str(playing.get()))
     if playing.get()==True:
@@ -214,19 +325,25 @@ def change_vol(volume):
     volume_label.config(text="Volume: " + v_slide)
 
 def play_time():
+    global pl_queue
+    global curr_playing
+
     curr_time = x.getCurrTime()
     leng = x.getLength()
     form_time = x.getFormattedTime()
     form_length = x.getFormattedLength()
-    if curr_time!=leng:
+    fin = x.get_is_finished()
+    if curr_time != leng:
         playing.set(True)
     else:
         playing.set(False)
     curr_time_label.config(text=form_time)
     length_label.config(text=form_length)
-    status_bar.config(text="Time Elapsed: " + form_time + "     Song Length: " + form_length)
+    status_bar.config(text="Song Playing: " + curr_playing + "     Time Elapsed: " + form_time + "     Song Length: " + form_length)
     music_slider.config(to=leng, value=curr_time)
     status_bar.after(1000, play_time)
+    if pl_queue == True:
+        root.after(250, check_finished)
 
 def search(arg):
     if (arg != ""):
@@ -250,7 +367,7 @@ def search(arg):
         update_label("Please input a title for the song you'd like to play")
         add_q_btn.config(state='disabled')
 def update_label(text):
-    display_var.set(text)
+    display_var.set("Found:\t" + text)
 
 def add_song():
     queue.append([found_title.get(), query_url.get()])
@@ -262,45 +379,23 @@ def add_song():
 #     th_timer = threading.Timer(.5, p_q)
 #     th_timer.start()
 
-def play_queue():
-    x.playlist(q_url)
-    play_time()
-
-    # if len(queue) != 0 and curr_q_index.get() < len(queue):
-    #     # x.playlist(queue)
-    #     if curr_q_index.get() == -1:
-    #         curr_q_index.set(curr_q_index.get() + 1)
-    #     print("hit")
-    #     play(queue[curr_q_index.get()][1])
-    #     playing = set([1,2,3,4])
-    #     time.sleep(1)
-    #     check_finished()
-    #     play_queue()
-        # while True:
-        #     state = x.get_state()
-        #     if state not in playing:
-        #         break
-        #     continue
-        # if len(queue) > curr_q_index.get():
-        #     curr_q_index.set(curr_q_index.get() + 1)
-        #     play_queue()
-        # for item in queue:
-        #     print("Title: " + item[0])
-        #     play(item[1])
-        #     time.sleep(1)
-        #     check_finished()
-
 def is_done():
     if x.get_is_playing() == True:
         if music_slider.get() == x.getLength():
             pass
 
 def check_finished():
-    while True:
-        state = x.get_state()
+    global play_next
+    global pl_queue
+    print ("hit outside")
+    is_fin = x.get_is_finished()
+    print("is_fin: ", is_fin, " pl_queue: ", pl_queue, "playing.get(): ", playing.get())
+    if x.get_is_playing()==False and pl_queue == True:
+        x.stop()
+        play_next = True
         time.sleep(1)
-        if x.get_is_playing() != True:
-            break
+        print("hit inside")
+        play_queue()
 
 def on_closing():
     if in_queue==True:
@@ -314,9 +409,9 @@ search_frame = Frame(root)
 search_frame.pack()
 
 search_btn = Button(search_frame, text="Enter a Youtube Title", command=lambda: search(e.get()))
-search_btn.grid(row=0,column=0,pady=(0,20))
+search_btn.grid(row=0,column=0,pady=(0,10))
 add_q_btn = Button(search_frame, text="Add song to queue", state='disabled', command=add_song)
-add_q_btn.grid(row=0,column=1,pady=(0,20))
+add_q_btn.grid(row=0,column=1,pady=(0,10))
 
 
 display_label=Label(root, textvariable=display_var, width=60)
@@ -328,7 +423,7 @@ info_frame.pack(pady=(0,10))
 queue_listbox=Listbox(info_frame)
 queue_listbox.grid(row=0, column=0, padx=(10,0))
 
-queue_play=Button(info_frame, text="Play Queue", command=play_queue)
+queue_play=Button(info_frame, text="Play Queue", command=play_queue_btn)
 queue_play.grid(row=1,column=0, padx=(10,0))
 
 curr_time_label=Label(info_frame, text="00:00:00")
@@ -350,7 +445,7 @@ volume_label.grid(row=1, column=3, padx=(35,0))
 control_frame = Frame(root)
 control_frame.pack()
 
-play_button = Button(control_frame, text="Play", command=play, width=15)
+play_button = Button(control_frame, text="Play", command=play_btn, width=15)
 play_button.grid(row=0, column=0,padx=35)
 
 res_pause_button = Button(control_frame, textvariable=res_pause, command=resume_pause, width=15)
@@ -367,5 +462,6 @@ status_bar.pack(fill=X)
 def popup():
     messagebox.showerror("ERROR!", "You must enter a title and search for it before clicking play!")
 
+# add_q_btn.after(500, check_finished)
 root.protocol("WM_DELETE_WINDOW", on_closing)
 root.mainloop()
