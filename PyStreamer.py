@@ -59,6 +59,7 @@ end_of_queue=True
 is_fin=False
 curr_playing=""
 curr_search=""
+max_width=5
 
 
 
@@ -67,7 +68,7 @@ curr_q_index.set(-1)
 queue_length=len(queue)
 
 #Odd numbers are titles, even numbers are urls/ids
-top3results=["","","","","",""]
+top3results={}
 
 
 
@@ -82,6 +83,7 @@ class vlPlayer():
             "--equalizer-preset=flat",
             "--speex-resampler-quality=10",
             "--src-converter-type=0",
+            "--no-video"
         ]
         self.from_playlist = False
         self.vlc_instance=vlc.Instance(self.options)
@@ -189,12 +191,33 @@ def play_btn():
     global pl_indiv
     global pl_queue
     global curr_q_index
+    global found_title
+    global curr_playing
+    curr_playing=found_title.get()
     if pl_queue==True:
         stop()
         pl_queue = False
     pl_indiv = True
     curr_q_index.set(-1)
+    print("hit play")
+    print("query_url.get(): ", query_url.get())
     play(query_url.get())
+
+def play_result_btn():
+    global pl_indiv
+    global pl_queue
+    global curr_q_index
+    global found_title
+    global curr_playing
+    global top3results
+    curr_playing=res_listbox.get(ANCHOR)
+    if pl_queue==True:
+        stop()
+        pl_queue = False
+    pl_indiv = True
+    curr_q_index.set(-1)
+    print(top3results[curr_playing])
+    play(top3results[curr_playing])
 
 def play_queue_btn():
     global pl_indiv
@@ -204,6 +227,7 @@ def play_queue_btn():
     global queue
     global end_of_queue
     curr_q_index.set(-1)
+    print("queue_listbox.get()", queue_listbox.get(ACTIVE))
     print("len(queue): ", len(queue))
     if len(queue) > 0:
         curr_q_index.set(0)
@@ -327,7 +351,8 @@ def change_vol(volume):
 def play_time():
     global pl_queue
     global curr_playing
-
+    # if x.get_is_playing() == False and x.get_is_finished() ==False:
+    #     status_bar.after(0, play_time)
     curr_time = x.getCurrTime()
     leng = x.getLength()
     form_time = x.getFormattedTime()
@@ -346,21 +371,46 @@ def play_time():
         root.after(250, check_finished)
 
 def search(arg):
+    global top3results
+    global max_width
     if (arg != ""):
+        res_listbox.delete(0, 'end')
+        top3results.clear()
         query_title = urllib.parse.urlencode({"search_query":arg})
         formatUrl = urllib.request.urlopen("https://www.youtube.com/results?"+query_title)
         search_results = re.findall(r"watch\?v=(\S{11})", formatUrl.read().decode())
-        clip = requests.get("https://www.youtube.com/watch?v="+"{}".format(search_results[0]))
-        clip2 = "https://www.youtu.be/"+"{}".format(search_results[0])
-        inspect = BeautifulSoup(clip.content, "html.parser")
-        yt_title = inspect.find_all("meta",property="og:title")
-        query_url.set(clip2)
-        for title in yt_title:
-            pass
-        query_url.set(pafy.new(clip2).getbestaudio().url)
-        found_title.set(str(title['content']))
-        update_label(found_title.get())
-        add_q_btn.config(state='normal')
+        counter = 0
+        if len(search_results) >= 3:
+            while counter != 3:
+                clip = requests.get("https://www.youtube.com/watch?v="+"{}".format(search_results[counter]))
+                clip2 = "https://www.youtu.be/"+"{}".format(search_results[counter])
+                inspect = BeautifulSoup(clip.content, "html.parser")
+                yt_title = inspect.find_all("meta",property="og:title")
+                # query_url.set(clip2)
+                for title in yt_title:
+                    pass
+                ttl = str(title['content'])
+                res_listbox.insert(END, ttl)
+                ur = pafy.new(clip2).getbestaudio().url
+                top3results[ttl] = ur
+                if len(ttl) > max_width: res_listbox.config(width=len(ttl))
+                add_q_btn.config(state='normal')
+                if counter == 0:
+                    query_url.set(ur)
+                    found_title.set(ttl)
+                    update_label(found_title.get())
+                counter +=1
+        # clip = requests.get("https://www.youtube.com/watch?v="+"{}".format(search_results[0]))
+        # clip2 = "https://www.youtu.be/"+"{}".format(search_results[0])
+        # inspect = BeautifulSoup(clip.content, "html.parser")
+        # yt_title = inspect.find_all("meta",property="og:title")
+        # query_url.set(clip2)
+        # for title in yt_title:
+        #     pass
+        # query_url.set(pafy.new(clip2).getbestaudio().url)
+        # found_title.set(str(title['content']))
+        # update_label(found_title.get())
+        # add_q_btn.config(state='normal')
     else:
         print("Empty query")
         query_url.set("")
@@ -370,9 +420,14 @@ def update_label(text):
     display_var.set("Found:\t" + text)
 
 def add_song():
-    queue.append([found_title.get(), query_url.get()])
-    q_url.append(query_url.get())
-    queue_listbox.insert(END, found_title.get())
+    title = res_listbox.get(ANCHOR)
+    ur = top3results[title]
+    queue.append([title, ur])
+    q_url.append(ur)
+    queue_listbox.insert(END, title)
+    # queue.append([found_title.get(), query_url.get()])
+    # q_url.append(query_url.get())
+    # queue_listbox.insert(END, found_title.get())
 
 # def play_queue():
 #     in_queue=True
@@ -405,6 +460,12 @@ def on_closing():
 e = Entry(root, width=60)
 e.pack()
 
+res_label = Label(root, text="Results:")
+res_label.pack()
+
+res_listbox = Listbox(root, height=5, width=max_width)
+res_listbox.pack()
+
 search_frame = Frame(root)
 search_frame.pack()
 
@@ -412,6 +473,8 @@ search_btn = Button(search_frame, text="Enter a Youtube Title", command=lambda: 
 search_btn.grid(row=0,column=0,pady=(0,10))
 add_q_btn = Button(search_frame, text="Add song to queue", state='disabled', command=add_song)
 add_q_btn.grid(row=0,column=1,pady=(0,10))
+pl_res_btn = Button(search_frame, text="Play Selected", command=play_result_btn)
+pl_res_btn.grid(row=0, column=2, pady=(0,10))
 
 
 display_label=Label(root, textvariable=display_var, width=60)
