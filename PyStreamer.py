@@ -13,15 +13,15 @@
 
 import os
 import pafy #pip install pafy
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup #pip install bs4
 import re, requests, subprocess, urllib.parse, urllib.request
 import vlc #pip install python-vlc
 import time
 from tkinter import *
 import tkinter.ttk as ttk
 from tkinter import messagebox
-from PIL import ImageTk, Image #pip install Pillow
-from googleapiclient.discovery import build #pip install google-api-python-client
+# from PIL import ImageTk, Image #pip install Pillow
+# from googleapiclient.discovery import build #pip install google-api-python-client
 import threading
 from threading import Thread
 root=Tk()
